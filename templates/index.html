@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TSP Solver & Interactive Visualizer</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- External visualization & socket libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="5" cy="5" r="3"></circle>
+                        <circle cx="19" cy="8" r="3"></circle>
+                        <circle cx="14" cy="19" r="3"></circle>
+                        <circle cx="6" cy="16" r="3"></circle>
+                        <line x1="7.5" y1="6" x2="16.5" y2="7"></line>
+                        <line x1="18" y1="10.5" x2="14.5" y2="16.5"></line>
+                        <line x1="12" y1="19" x2="8.5" y2="17.5"></line>
+                        <line x1="5.5" y1="13.5" x2="5" y2="8"></line>
+                    </svg>
+                </div>
+                <div>
+                    <h1>TSP Visualizer & Advanced Heuristic Engine</h1>
+                    <p class="subtitle">Nearest Neighbor Construction • 2-Opt • Or-Opt • 3-Opt • Lin-Kernighan • Simulated Annealing • ILS</p>
+                </div>
+            </div>
+            <div class="connection-status">
+                <span class="status-dot" id="status-indicator"></span>
+                <span id="connection-text">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            <!-- Left: Interactive Visual Simulation Canvas -->
+            <section class="simulation-section">
+                <div class="canvas-header">
+                    <div class="canvas-title">
+                        <span class="pulse-indicator" id="solver-pulse"></span>
+                        <h2 id="active-instance-title">Instance: pr152 (152 cities)</h2>
+                    </div>
+                    <div class="stage-badge" id="badge-stage">Ready</div>
+                </div>
+
+                <div class="canvas-wrapper" id="canvas-container">
+                    <svg id="tour-svg"></svg>
+                    <div class="canvas-overlay" id="empty-state">
+                        <p>Select an instance and click <strong>Solve Instance</strong> to start simulation</p>
+                    </div>
+                </div>
+
+                <!-- Bottom Convergence Chart -->
+                <div class="chart-wrapper">
+                    <div class="chart-header">
+                        <h3>Optimization Trajectory (Distance vs. Step)</h3>
+                        <span class="chart-sub">Real-time convergence</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="convergence-canvas"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Sidebar: Controls & Stats -->
+            <aside class="control-sidebar">
+                <!-- Instance Selection Card -->
+                <div class="card">
+                    <h3>Benchmark Instance</h3>
+                    <div class="form-group">
+                        <label for="instance-select">Select Challenge Dataset:</label>
+                        <select id="instance-select">
+                            <option value="pr152">pr152 (152 cities)</option>
+                            <option value="d198">d198 (198 cities)</option>
+                            <option value="ts225">ts225 (225 cities)</option>
+                            <option value="pr226">pr226 (226 cities)</option>
+                            <option value="a280">a280 (280 cities)</option>
+                            <option value="lin318">lin318 (318 cities)</option>
+                            <option value="fl417">fl417 (417 cities)</option>
+                            <option value="pr439">pr439 (439 cities)</option>
+                            <option value="pcb442">pcb442 (442 cities)</option>
+                            <option value="d493">d493 (493 cities)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Heuristic Pipeline Toggles -->
+                <div class="card">
+                    <h3>Heuristic Pipeline</h3>
+                    <div class="heuristic-options">
+                        <label class="checkbox-container">
+                            <input type="checkbox" class="h-checkbox" value="2-opt" checked>
+                            <span class="checkmark"></span>
+                            <span class="h-label">2-Opt Local Search</span>
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" class="h-checkbox" value="or-opt" checked>
+                            <span class="checkmark"></span>
+                            <span class="h-label">Or-Opt (1, 2, 3 Chain Relocations)</span>
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" class="h-checkbox" value="3-opt" checked>
+                            <span class="checkmark"></span>
+                            <span class="h-label">3-Opt Reconnection</span>
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" class="h-checkbox" value="lk-opt" checked>
+                            <span class="checkmark"></span>
+                            <span class="h-label">Lin-Kernighan Variable-Depth</span>
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" class="h-checkbox" value="simulated_annealing" checked>
+                            <span class="checkmark"></span>
+                            <span class="h-label">Simulated Annealing</span>
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" class="h-checkbox" value="ils" checked>
+                            <span class="checkmark"></span>
+                            <span class="h-label">Iterated Local Search (Double Bridge)</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 14px;">
+                        <div class="slider-header">
+                            <label for="restarts-slider">ILS Restarts / Kicks:</label>
+                            <span id="restarts-val" class="slider-val">8</span>
+                        </div>
+                        <input type="range" id="restarts-slider" min="1" max="25" value="8">
+                    </div>
+                </div>
+
+                <!-- Execution Controls -->
+                <div class="card button-card">
+                    <button id="btn-solve" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Solve & Animate
+                    </button>
+                    <button id="btn-stop" class="btn btn-danger" disabled>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <rect x="6" y="6" width="12" height="12"></rect>
+                        </svg>
+                        Stop
+                    </button>
+                    <button id="btn-benchmark" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                        Run All 10 Benchmarks
+                    </button>
+                </div>
+
+                <!-- Live Metrics Card -->
+                <div class="card stats-card">
+                    <h3>Real-time Metrics</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-box">
+                            <span class="m-title">Current Distance</span>
+                            <span class="m-value" id="val-distance">—</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="m-title">Known Optimal</span>
+                            <span class="m-value highlight" id="val-optimal">73,682</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="m-title">Optimality Gap</span>
+                            <span class="m-value" id="val-gap">—</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="m-title">Elapsed Time</span>
+                            <span class="m-value" id="val-time">0.0s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Benchmark Summary Table -->
+                <div class="card benchmark-card">
+                    <div class="bench-header">
+                        <h3>Hall of Fame Submissions</h3>
+                        <button id="btn-export-csv" class="btn-link">Export CSV</button>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="bench-table">
+                            <thead>
+                                <tr>
+                                    <th>Instance</th>
+                                    <th>N</th>
+                                    <th>Result</th>
+                                    <th>Optimal</th>
+                                    <th>Gap</th>
+                                </tr>
+                            </thead>
+                            <tbody id="benchmark-tbody">
+                                <!-- Filled dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/canvas.js"></script>
+    <script src="/static/js/chart.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+
